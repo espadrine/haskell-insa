@@ -96,11 +96,53 @@ cols ([]:_) = []
 cols ((x:xs):xss) = (x:[h | (h:_) <- xss]) : cols (xs : [t | (_:t) <- xss])
 
 chop :: Int -> [a] -> [[a]]
-chop n l = take n l : (if (length l) > n then chop n (drop n l) else [])
+chop _ [] = []
+chop n l = take n l : chop n (drop n l)
 
 -- Each sudoku box, given a sudoku.
 boxs :: Matrix a -> [Row a]
 boxs l = concat $ map ((map concat) . cols . map (chop boxsize)) (chop boxsize l)
+-- Other implementation to highlight map / reduce (packing / unpacking):
+--box l = map concat . concat (map cols (split . map split l))
+--        -------------------            -----------------
+--          unpacking                       packing
 
-main = print (boxs minimal)
+nodups :: Eq a => [a] -> Bool
+nodups [] = True
+nodups (x:xs) = not (elem x xs) && nodups xs
+
+-- Create all possible grid: go through choices and collapse.
+
+type Choice = [Value]
+
+choices :: Matrix Char -> Matrix Choice
+choices = map (map (\v -> if empty v then values else [v]))
+
+-- Cartesian product: [[0,1],[2]] -> [[0,2],[1,2]].
+cp :: [[a]] -> [[a]]
+cp [] = [[]]
+cp (xs:xss) = [(h:ys) | h <- xs, ys <- cp xss]
+
+-- Expand all choices in a list of possible grids.
+collapse :: Matrix Choice -> [Grid]
+collapse = cp . map cp
+
+-- check validity of a grid.
+
+valid :: Grid -> Bool
+valid g = (all nodups (rows g)) && (all nodups (cols g)) && (all nodups (boxs g))
+
+solve :: Grid -> [Grid]
+solve = filter valid . collapse . choices
+
+fminimal =["6.4925378",
+           "3.5817469",
+           "7896.4521",
+           "1527.3896",
+           "863192745",
+           "947586132",
+           "491278653",
+           "236451987",
+           "578369214"]
+main = print (solve fminimal)
 
