@@ -132,8 +132,36 @@ collapse = cp . map cp
 valid :: Grid -> Bool
 valid g = (all nodups (rows g)) && (all nodups (cols g)) && (all nodups (boxs g))
 
+-- Pruning obviously invalid results…
+
+-- Returns the first fixed point.
+fix :: (Eq a) => (a -> a) -> a -> a
+fix f x = if x == x' then x else fix f x'
+  where x' = f x
+
+-- Returns the list of unique values in each row.
+singles :: Row Choice -> Choice
+singles = concat . (filter single)
+
+-- Remove the singleton (eg, "3") from start (eg, "123" → "12").
+minus :: Choice -> Choice -> Choice
+minus start singleton = if (single start) then start else start \\ singleton
+
+-- Remove the singletons from each element of xs.
+reduce :: Row Choice -> Row Choice
+reduce xs = map (`minus` (singles xs)) xs
+
+-- Apply a function to an involution
+applyInv involution f = involution . f . involution
+
+prune :: Matrix Choice -> Matrix Choice
+prune m = ((applyInv cols f) . (applyInv rows f) . (applyInv boxs f)) m
+  where f = map reduce
+
 solve :: Grid -> [Grid]
-solve = filter valid . collapse . choices
+-- Inefficient:
+--solve = filter valid . collapse . choices
+solve = filter valid . collapse . fix prune . choices
 
 fminimal =["6.4925378",
            "3.5817469",
@@ -144,5 +172,4 @@ fminimal =["6.4925378",
            "491278653",
            "236451987",
            "578369214"]
-main = print (solve fminimal)
-
+main = print (solve easy)
