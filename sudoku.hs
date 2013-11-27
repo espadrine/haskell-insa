@@ -158,18 +158,76 @@ prune :: Matrix Choice -> Matrix Choice
 prune m = ((applyInv cols f) . (applyInv rows f) . (applyInv boxs f)) m
   where f = map reduce
 
+fminimal = ["6.4925378",
+            "3.5817469",
+            "7896.4521",
+            "1527.3896",
+            "863192745",
+            "947586132",
+            "491278653",
+            "236451987",
+            "578369214"]
+
 solve :: Grid -> [Grid]
--- Inefficient:
+-- Inefficient (test it only with fminimal above):
 --solve = filter valid . collapse . choices
 solve = filter valid . collapse . fix prune . choices
 
-fminimal =["6.4925378",
-           "3.5817469",
-           "7896.4521",
-           "1527.3896",
-           "863192745",
-           "947586132",
-           "491278653",
-           "236451987",
-           "578369214"]
-main = print (solve easy)
+--main = print (solve easy)
+
+
+-- Better version of collapse using a BFS where we cut invalid branches.
+consistent :: Row Choice -> Bool
+consistent = nodups . singles
+
+-- Safe branch, carry on!
+safe :: Matrix Choice -> Bool
+safe m = (all consistent (rows m)) && (all consistent (cols m)) && (all consistent (boxs m))
+
+-- Cells with no possibilities.
+void :: Matrix Choice -> Bool
+void = any (any null)
+
+-- This branch is dead, look no deeper.
+blocked :: Matrix Choice -> Bool
+blocked m = void m || not (safe m)
+
+-- Leaf of the tree of possibilities.
+complete :: Matrix Choice -> Bool
+complete = all (all single)
+
+search :: Matrix Choice -> [Grid]
+search m
+  | blocked m = []
+  | complete m = collapse m
+  | otherwise = [g | m' <- expand m, g <- search (prune m')]
+
+-- Cut the possibilities of this matrix of choices in many matrices of choice,
+-- by choosing a pivot (eg, "123") and exploding it (eg, "1" vs. "2" vs. "3").
+expand :: Matrix Choice -> [Matrix Choice]
+expand m = expandAcc m [] where
+  expandAcc (x:xs) lead = if (any multipleChoice x)
+  then -- The pivot is in x.
+    [lead ++ [r] ++ xs | r <- (expandRow x)]
+  else -- The pivot is yet to be found.
+    expandAcc xs (lead ++ [x])
+
+multipleChoice :: Choice -> Bool
+multipleChoice c = length c > 1
+
+-- Expand a single row containing the pivot.
+-- eg, ["14","5"] → [["1","5"], ["4","5"]]
+expandRow :: Row Choice -> [Row Choice]
+expandRow r = expandRowAcc r [] where
+  expandRowAcc (x:xs) lead = if (multipleChoice x)
+  then -- The pivot is x.
+    [lead ++ [[d]] ++ xs | d <- x]
+  else -- The pivot is in xs.
+    expandRowAcc xs (lead ++ [x])
+
+solve4 :: Grid -> [Grid]
+solve4 = search . prune . choices
+-- End of better version of collapse.
+
+
+main = print (solve4 diabolical)
