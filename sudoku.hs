@@ -167,13 +167,14 @@ fminimal = ["6.4925378",
             "491278653",
             "236451987",
             "578369214"]
-
-solve :: Grid -> [Grid]
 -- Inefficient (test it only with fminimal above):
---solve = filter valid . collapse . choices
-solve = filter valid . collapse . fix prune . choices
+solve1 :: Grid -> [Grid]
+solve1 = filter valid . collapse . choices
+--main = print (solve1 fminimal)
 
---main = print (solve easy)
+solve2 :: Grid -> [Grid]
+solve2 = filter valid . collapse . fix prune . choices
+--main = print (solve2 easy)
 
 
 -- Better version of collapse using a BFS where we cut invalid branches.
@@ -205,29 +206,13 @@ search m
 -- Cut the possibilities of this matrix of choices in many matrices of choice,
 -- by choosing a pivot (eg, "123") and exploding it (eg, "1" vs. "2" vs. "3").
 expand :: Matrix Choice -> [Matrix Choice]
-expand m = expandAcc m [] where
-  expandAcc (x:xs) lead = if (any multipleChoice x)
-  then -- The pivot is in x.
-    [lead ++ [r] ++ xs | r <- (expandRow x)]
-  else -- The pivot is yet to be found.
-    expandAcc xs (lead ++ [x])
+expand m = [ rows1 ++ [row1 ++ [[c]] ++ row2] ++ rows2 | c <- cs ]
+  where (rows1, row:rows2) = break (any (not . single)) m
+        (row1, cs:row2)    = break (not . single) row
 
-multipleChoice :: Choice -> Bool
-multipleChoice c = length c > 1
-
--- Expand a single row containing the pivot.
--- eg, ["14","5"] → [["1","5"], ["4","5"]]
-expandRow :: Row Choice -> [Row Choice]
-expandRow r = expandRowAcc r [] where
-  expandRowAcc (x:xs) lead = if (multipleChoice x)
-  then -- The pivot is x.
-    [lead ++ [[d]] ++ xs | d <- x]
-  else -- The pivot is in xs.
-    expandRowAcc xs (lead ++ [x])
-
-solve4 :: Grid -> [Grid]
-solve4 = search . prune . choices
+solve3 :: Grid -> [Grid]
+solve3 = search . prune . choices
 -- End of better version of collapse.
 
 
-main = print (solve4 diabolical)
+main = print (solve3 diabolical)
